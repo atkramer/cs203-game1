@@ -16,13 +16,13 @@ interface Collidable {
 
 class Obstacle implements Collidable{
    
-    //---//---// Fields //---//---//
+    //---//---// fields //---//---//
     Posn position;
     int width;
     int height;
     String imgName;
 
-    //---//---// Constructors //---//---//
+    //---//---// constructors //---//---//
     Obstacle(Posn position, int width, int height, String imgName) {
 	this.imgName = imgName;
 	this.width = width;
@@ -56,6 +56,17 @@ class Obstacle implements Collidable{
     // other attributes set to those of the original
     public Collidable move(Posn position) {
 	return new Obstacle(position, this.width, this.height, this.imgName);
+    }
+
+    public static Collidable randObstacle(Posn position) {
+	double rand = Math.random();
+	if(rand <= .33) {
+	    return new Obstacle(position, 15, 35, "Images/tree.png");
+	} else if(rand <= .66) {
+	    return new Obstacle(position, 35, 15, "Images/log.png");
+	} else {
+	    return new Obstacle(position, 20, 15, "Images/rock.png");
+	}
     }
     
     
@@ -121,9 +132,9 @@ class Player implements Collidable{
 
     //EFFECT: returns a new Player with indicated speed and direction,
     // and all other attributes set to those of the original
-    public Player changeCourse(double speed, int direction) {
+    public Player changeCourse(double speed, int direction, String imgName) {
 	return new Player(this.position, this.width, this.height,
-			  this.imgName, speed, direction);
+			  imgName, speed, direction);
     }
 
     //EFFECT: returns a new player with indicated Posn, and all
@@ -132,10 +143,7 @@ class Player implements Collidable{
 	return new Player(this.position, this.width,
 			  this.height, this.imgName, this.speed, this.direction);
     }
-
 }
-
-//To be implemented once the game is working just with static obstacles
 /*
 class Enemy implements Collidable{
    
@@ -143,18 +151,18 @@ class Enemy implements Collidable{
     Posn position;
     int width;
     int height;
-    FromFileImage img;
+    String imgName;
     double speed;
     int direction;
     
     //---//---// Constructors //---//---//
 
     Enemy(Posn position, int width, int height,
-	  FromFileImage img, double speed, int direction) {
+	  String imgName, double speed, int direction) {
 	this.position = position;
 	this.width = width;
 	this.height = height;
-	this.img = img;
+	this.imgName = imgName;
 	this.speed = speed;
 	this.direction = direction;
     }
@@ -174,7 +182,7 @@ class Enemy implements Collidable{
     }
 
     public FromFileImage getImage() {
-	return this.img;
+	return new FromFileImage(this.position, this.imgName);
     }
 
     public double getSpeed() {
@@ -187,15 +195,20 @@ class Enemy implements Collidable{
 
     public Collidable move(Posn position) {
 	return new Enemy(position, this.width, this.height,
-			 this.img, this.speed, this.direction);
+			 this.imgName, this.speed, this.direction);
     }
 
     public Collidable changeCourse(double speed, int direction) {
 	return new Enemy(this.position, this.width, this.height,
-			 this.img, speed, direction);
-    }
-} */
+			 this.imgName, speed, direction);
+    };
 
+    public Collidable moveTowards(Posn destination) {
+	return this.move(new Posn(this.position.x + ,
+				  this.poition.y  )
+    }
+} 
+*/
 
 
 //Pure Queue implementation for keeping track of Obstacles in Slopes
@@ -270,7 +283,12 @@ class Queue implements PureQueue {
     //EFFECT: return a new Queue that's like the original, but with
     // the very first item removed
     public PureQueue remove() {
-	return new Queue(this.first, this.others.remove());
+	try {
+	    return new Queue(this.others.getFirst(), this.others.getOthers());
+	} 
+	catch(NullQueueException e) {
+	    return new NullQueue();
+	}
     }
 
     //EFFECT: return an int representing the number of elements in this
@@ -308,6 +326,13 @@ class Slopes {
     Player skier;
     int width;
     int height;
+    static final int LEFT = -1;
+    static final int STRAIGHT = 0;
+    static final int RIGHT = 1;
+    static final double SLOW = .75;
+    static final double NORMAL = 1.0;
+    static final double FAST = 1.25;
+    static final int TICKDISTANCE = 10;
     
     //---//---// Constructors //---//---//
     Slopes(PureQueue obstacles, Player skier, int width, int height) {
@@ -328,9 +353,14 @@ class Slopes {
 	}
 	catch(NullQueueException e) { }
 	finally {
-	    if(Math.random() <= .1) {
-		temp = temp.add(new Obstacle(new Posn((int) (Math.random() * this.width), this.height),
-					     20, 20, "Images/fish.png"));
+	    if(Math.random() <= .2 * this.skier.getSpeed()) {
+		temp = temp.add(Obstacle.randObstacle(new Posn((int) (Math.random() * this.width), this.height)));
+	    }
+	    if(this.skier.getDirection() <= LEFT && Math.random() <= .2 * this.skier.getSpeed()) {
+		temp = temp.add(Obstacle.randObstacle(new Posn(0, (int) (Math.random() * this.height))));
+	    }
+	    if(this.skier.getDirection() >= RIGHT && Math.random() <= .2 * this.skier.getSpeed()) {
+		temp = temp.add(Obstacle.randObstacle(new Posn(this.width, (int) (Math.random() * this.height))));
 	    }
 	    return new Slopes(temp.moveAll(tickDistance + (int) (5*this.skier.getSpeed()),
 					   5*this.skier.getDirection()), 
@@ -384,49 +414,74 @@ public class SkiFree extends World {
     int width;
     int height;
     Slopes slopes;
+    int score;
+    static final int LEFTER = -2;
     static final int LEFT = -1;
     static final int STRAIGHT = 0;
     static final int RIGHT = 1;
+    static final int RIGHTER = 2;
     static final double SLOW = .75;
     static final double NORMAL = 1.0;
     static final double FAST = 1.25;
     static final int TICKDISTANCE = 10;
 
-    SkiFree(Slopes slopes, int width, int height) {
+    SkiFree(Slopes slopes, int width, int height, int score) {
 	this.width = width;
 	this.height = height;
 	this.slopes = slopes;
+	this.score = score;
     }
 
     public World onKeyEvent(String key) {
-	
-	if(key.equals("left")) {		
+	int dir = this.slopes.getSkier().getDirection();
+	if(key.equals("left") && (dir==LEFT || dir==LEFTER)) {		
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(SLOW, LEFT),
+					  slopes.getSkier().changeCourse(SLOW, LEFTER, "Images/playerVeryLeft.png"),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height);
+			       this.width, this.height, this.score);
+
+	} else if(key.equals("left")) {		
+	    return new SkiFree(new Slopes(slopes.getObstacles(),
+					  slopes.getSkier().changeCourse(NORMAL, LEFT, "Images/playerSomeLeft.png"),
+					  slopes.getWidth(),
+					  slopes.getHeight()),
+			       this.width, this.height, this.score);
+	    
+	} else if(key.equals("right") && (dir==RIGHT || dir==RIGHTER)) {
+	    return new SkiFree(new Slopes(slopes.getObstacles(),
+					  slopes.getSkier().changeCourse(SLOW, RIGHTER, "Images/playerVeryRight.png"),
+					  slopes.getWidth(),
+					  slopes.getHeight()),
+			       this.width, this.height, this.score);
 	    
 	} else if(key.equals("right")) {
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(SLOW, RIGHT),
+					  slopes.getSkier().changeCourse(NORMAL, RIGHT, "Images/playerSomeRight.png"),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height);
+			       this.width, this.height, this.score);
+	    
+	} else if(key.equals("down") && dir==STRAIGHT) {
+	    return new SkiFree(new Slopes(slopes.getObstacles(),
+					  slopes.getSkier().changeCourse(FAST, STRAIGHT, "Images/playerStraight.png"),
+					  slopes.getWidth(),
+					  slopes.getHeight()),
+			       this.width, this.height, this.score);
 	    
 	} else if(key.equals("down")) {
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(FAST, STRAIGHT),
+					  slopes.getSkier().changeCourse(NORMAL, STRAIGHT, "Images/playerStraight.png"),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height);
+			       this.width, this.height, this.score);
 	    
-	} else if(key.equals("up")) {
+	} else if(key.equals("up") && dir==STRAIGHT) {
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(SLOW, slopes.getSkier().getDirection()),
+					  slopes.getSkier().changeCourse(SLOW, STRAIGHT, "Images/playerStraight.png"),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height);
+			       this.width, this.height, this.score);
 	    
 	} else if(key.equals("q")) {
 	    return this.endOfWorld("Thanks for playing!");
@@ -437,12 +492,17 @@ public class SkiFree extends World {
     public World onTick() {
 	return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
 						    slopes.getSkier().getSpeed())),
-			   this.width, this.height);
+			   this.width, this.height,
+			   ((int) (this.score +  1.5*this.slopes.getSkier().getSpeed())));
+
     }
     
     public WorldImage makeImage() {
-	return new OverlayImages(slopes.getSkier().getImage(),
-				 slopes.getObstacles().drawAll());		 
+	return new OverlayImages( slopes.getObstacles().drawAll(),
+				  new OverlayImages(new TextImage(new Posn(this.width-100, 100),
+								  "Score: " + this.score,
+								  Color.BLUE),
+						    slopes.getSkier().getImage()));		 
     }
 
     public WorldImage lastImage(String s) {
@@ -450,27 +510,39 @@ public class SkiFree extends World {
 						    this.width,
 						    this.height,
 						    Color.BLACK),
-				 new TextImage(this.slopes.getSkier().getPosn(),
-					       s,
-					       30,
-					       Color.RED)); 
+				 new OverlayImages(new TextImage(this.slopes.getSkier().getPosn(),
+								 s,
+								 20,
+								 Color.RED),
+						   //Second text image to display score on a new line, since
+						   //TextImage doesn't work with escape characters
+						   new TextImage(new Posn(this.slopes.getSkier().getPosn().x,
+									  this.slopes.getSkier().getPosn().y + 50),
+								 "You scored " + this.score + " points!",
+								 30,
+								 Color.RED)));
     }
 
     public WorldEnd worldEnds() {
 	if(this.slopes.isCollisionHuh(this.slopes.obstacles)) {
-	    return new WorldEnd(true, this.lastImage("Ouch! Better luck next time!"));
+	    try {
+		Thread.sleep(250);
+	    } catch(InterruptedException e) {
+		Thread.currentThread().interrupt();
+	    } finally {
+		return new WorldEnd(true, this.lastImage("Ouch! Better luck next time!"));
+	    }
 	} else {
 	    return new WorldEnd(false, this.makeImage());
 	}
     } 
 
     public static void main(String[] args) {
-	
 	PureQueue qu = new NullQueue();
-	Player plyr = new Player(new Posn(400, 200), 20, 40,
-				 "Images/fish.png", NORMAL, STRAIGHT);
+	Player plyr = new Player(new Posn(400, 200), 30, 30,
+				 "Images/playerStraight.png", NORMAL, STRAIGHT);
 	Slopes slps = new Slopes(qu, plyr, 1000, 800);
-	SkiFree s = new SkiFree(slps, 800, 600);
+	SkiFree s = new SkiFree(slps, 800, 600, 0);
 	s.bigBang(800, 600, .03);
     }
     

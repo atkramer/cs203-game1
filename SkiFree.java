@@ -7,14 +7,13 @@ import tester.*;
 import java.awt.Color;
 
 interface Collidable {
-    Posn getPosn();
-    int getWidth();
-    int getHeight();
-    FromFileImage getImage();
-    Collidable move(Posn posn);
-} 
+    int getWidth() throws NoEnemyException;
+    int getHeight() throws NoEnemyException;
+    Posn getPosn() throws NoEnemyException;
+    boolean collidingHuh(Collidable c);
+}
 
-class Obstacle implements Collidable{
+class Obstacle implements Collidable {
    
     //---//---// fields //---//---//
     Posn position;
@@ -54,14 +53,25 @@ class Obstacle implements Collidable{
 
     //EFFECT: returns a new Obstacle with indicated Posn, and all 
     // other attributes set to those of the original
-    public Collidable move(Posn position) {
+    public Obstacle move(Posn position) {
 	return new Obstacle(position, this.width, this.height, this.imgName);
     }
 
-    public static Collidable randObstacle(Posn position) {
+    public boolean collidingHuh(Collidable c) {
+	try {
+	    return Math.abs(c.getPosn().x - this.position.x) <
+		(c.getWidth()/2 + this.width/2) &&
+		Math.abs(c.getPosn().y - this.position.y) <
+		(c.getHeight()/2 + this.height/2);
+	} catch(NoEnemyException e) {
+	    return false;
+	}
+    }
+    
+    public static Obstacle randObstacle(Posn position) {
 	double rand = Math.random();
 	if(rand <= .33) {
-	    return new Obstacle(position, 15, 35, "Images/tree.png");
+	    return new Obstacle(position, 15, 30, "Images/tree.png");
 	} else if(rand <= .66) {
 	    return new Obstacle(position, 35, 15, "Images/log.png");
 	} else {
@@ -72,7 +82,7 @@ class Obstacle implements Collidable{
     
 }
 
-class Player implements Collidable{
+class Player implements Collidable {
 
     //---//---// Fields //---//---//
 
@@ -143,9 +153,84 @@ class Player implements Collidable{
 	return new Player(this.position, this.width,
 			  this.height, this.imgName, this.speed, this.direction);
     }
+
+    public boolean collidingHuh(Collidable c) {
+	try {
+	    return Math.abs(c.getPosn().x - this.position.x) <
+		(c.getWidth()/2 + this.width/2) &&
+		Math.abs(c.getPosn().y - this.position.y) <
+		(c.getHeight()/2 + this.height/2);
+	} catch(NoEnemyException e) {
+	    return false;
+	}
+    }
 }
-/*
-class Enemy implements Collidable{
+
+//Interface for Enemy or nothing, since Slopes needs to be able to sometimes
+//have an Enemy and sometimes not
+
+interface EnemySpace extends Collidable{
+    boolean emptyHuh();
+    Posn getPosn() throws NoEnemyException;
+    int getWidth() throws NoEnemyException;
+    int getHeight() throws NoEnemyException;
+    FromFileImage getImage() throws NoEnemyException;
+    double getSpeed() throws NoEnemyException;
+    int getDirection() throws NoEnemyException;
+    boolean collidingHuh(Collidable c);
+    EnemySpace move(Posn position);
+    EnemySpace move(int dx, int dy);
+    EnemySpace moveTowards(Posn position, int distance);
+    EnemySpace changePic(String imgName);
+} 
+
+class NoEnemyException extends Exception {
+    NoEnemyException(String message) {
+	super(message);
+    }
+}
+
+class NoEnemy implements EnemySpace{
+    public boolean emptyHuh() {
+	return true;
+    }
+    public Posn getPosn() throws NoEnemyException {
+	throw new NoEnemyException("Nothing here");
+    }
+    public int getWidth() throws NoEnemyException {
+	throw new NoEnemyException("Nothing here");
+    }
+    public int getHeight() throws NoEnemyException {
+	throw new NoEnemyException("Nothing here");
+    }
+    public FromFileImage getImage() throws NoEnemyException {
+	throw new NoEnemyException("Nothing here");
+    }
+    public double getSpeed() throws NoEnemyException {
+	throw new NoEnemyException("Nothing here");
+    }
+    public int getDirection() throws NoEnemyException {
+	throw new NoEnemyException("Nothing here");
+    }
+    public boolean collidingHuh(Collidable c) {
+	return false;
+    }
+    public EnemySpace move(Posn position) {
+	return this;
+    }
+    public EnemySpace move(int dx, int dy) {
+	return this;
+    }
+    public EnemySpace moveTowards(Posn position, int distance) {
+	return this;
+    }
+    public EnemySpace changePic(String imgName) {
+	return this;
+    }
+}
+
+
+class Enemy implements EnemySpace{
    
     //---//---// Fields //---//---//
     Posn position;
@@ -168,6 +253,10 @@ class Enemy implements Collidable{
     }
     
     //---//---// Methods //---//---//
+
+    public boolean emptyHuh() {
+	return false;
+    }
 
     public Posn getPosn() {
 	return this.position;
@@ -193,22 +282,50 @@ class Enemy implements Collidable{
 	return this.direction;
     }
 
-    public Collidable move(Posn position) {
+    public EnemySpace move(Posn position) {
 	return new Enemy(position, this.width, this.height,
 			 this.imgName, this.speed, this.direction);
     }
 
-    public Collidable changeCourse(double speed, int direction) {
-	return new Enemy(this.position, this.width, this.height,
-			 this.imgName, speed, direction);
-    };
+    public EnemySpace move(int dx, int dy) {
+	return new Enemy(new Posn(this.position.x + dx, this.position.y + dy),
+			 this.width, this.height, this.imgName, this.speed,
+			 this.direction);
+    }
 
-    public Collidable moveTowards(Posn destination) {
-	return this.move(new Posn(this.position.x + ,
-				  this.poition.y  )
+    public EnemySpace moveTowards(Posn destination, int distance) {
+	int distToTarget = (int) Math.hypot(destination.x-this.position.x,
+					 destination.y-this.position.y);
+	int xDist = (destination.x - this.position.x);
+	int yDist = (destination.y - this.position.y);
+	int newX = (distance*xDist)/distToTarget;
+	int newY = (distance*yDist)/distToTarget;
+	if(distToTarget >= distance) {
+	    return this.move((int) (this.speed*newX), (int) (this.speed*newY));
+	}
+	else {
+	    return this.move((int) (this.speed*xDist), (int) (this.speed*yDist));
+	}
+
+    }
+
+    public EnemySpace changePic(String imgName) {
+	return new Enemy(this.position, this.width, this.height, imgName,
+			 this.speed, this.direction);
+    }
+
+    public boolean collidingHuh(Collidable c) {
+	try {
+	    return Math.abs(c.getPosn().x - this.position.x) <
+		(c.getWidth()/2 + this.width/2) &&
+		Math.abs(c.getPosn().y - this.position.y) <
+		(c.getHeight()/2 + this.height/2);
+	} catch(NoEnemyException e) {
+	    return false;
+	}
     }
 } 
-*/
+
 
 
 //Pure Queue implementation for keeping track of Obstacles in Slopes
@@ -226,11 +343,11 @@ class NullQueueException extends Exception {
 
 interface PureQueue {
     boolean isEmptyHuh();
-    PureQueue add(Collidable c);
+    PureQueue add(Obstacle c);
     PureQueue remove();
     PureQueue moveAll(int tickDistance, int playerDir);
     int length();
-    Collidable getFirst() throws NullQueueException;
+    Obstacle getFirst() throws NullQueueException;
     PureQueue getOthers();
     WorldImage drawAll();
 }
@@ -241,7 +358,7 @@ class NullQueue implements PureQueue {
     //EFFECT: return true
     public boolean isEmptyHuh() { return true; }
     //Effect: return a new Queue containing only the new item
-    public PureQueue add(Collidable c) {
+    public PureQueue add(Obstacle c) {
 	return new Queue(c, this);
     }
     //Effect: return this
@@ -250,7 +367,7 @@ class NullQueue implements PureQueue {
     public int length() { return 0; }
     //Effect: throw a NullQueueException, since there is no first
     // item in a NullQueue to be accessed
-    public Collidable getFirst() throws NullQueueException {
+    public Obstacle getFirst() throws NullQueueException {
 	throw new NullQueueException("No members in an empty queue");
     }
     //EFFECT: return this, since there are no others
@@ -263,10 +380,10 @@ class NullQueue implements PureQueue {
 }
 
 class Queue implements PureQueue {
-    Collidable first;
+    Obstacle first;
     PureQueue others;
 
-    Queue(Collidable first, PureQueue others) {
+    Queue(Obstacle first, PureQueue others) {
 	this.first = first;
 	this.others = others;
     }
@@ -276,7 +393,7 @@ class Queue implements PureQueue {
 
     //EFFECT: return a new Queue that's like the original, but
     // with the new item added onto the end
-    public PureQueue add(Collidable c) {
+    public PureQueue add(Obstacle c) {
 	return new Queue(this.first, this.others.add(c));
     }
 
@@ -298,7 +415,7 @@ class Queue implements PureQueue {
     }
     
     //EFFECT: return the first item in this Queue
-    public Collidable getFirst() {
+    public Obstacle getFirst() {
 	return this.first;
     }
 
@@ -307,7 +424,7 @@ class Queue implements PureQueue {
 	return this.others;
     }
 
-    //EFFECT: return a new Queue, containing all the same Collidables, but
+    //EFFECT: return a new Queue, containing all the same Obstacles, but
     // with each one's Posn moved up or down by the indicated distance
     public PureQueue moveAll(int tickDistance, int playerDir) {
 	return new Queue(this.first.move(new Posn(this.first.getPosn().x - playerDir,
@@ -324,6 +441,7 @@ class Slopes {
     //---//---// Fields //---//---//
     PureQueue obstacles;
     Player skier;
+    EnemySpace yeti;
     int width;
     int height;
     static final int LEFT = -1;
@@ -331,18 +449,46 @@ class Slopes {
     static final int RIGHT = 1;
     static final double SLOW = .75;
     static final double NORMAL = 1.0;
-    static final double FAST = 1.25;
+    static final double YETISPEED = 1.4;
+    static final double FAST = 1.6;
     static final int TICKDISTANCE = 10;
     
     //---//---// Constructors //---//---//
     Slopes(PureQueue obstacles, Player skier, int width, int height) {
 	this.obstacles = obstacles;
 	this.skier = skier;
+	this.yeti = new NoEnemy();
+	this.width = width;
+	this.height = height;
+    }
+
+    Slopes(PureQueue obstacles, Player skier, EnemySpace yeti, int width, int height) {
+	this.obstacles = obstacles;
+	this.skier = skier;
+	this.yeti = yeti;
 	this.width = width;
 	this.height = height;
     }
 
     //---//---// Methods //---//---//
+    
+    public Slopes addYeti() {
+	return new Slopes(this.obstacles,
+			  this.skier,
+			  new Enemy(new Posn((int) (Math.random() * this.width), 0),
+				    30,
+				    40,
+				    "Images/yeti-1.png",
+				    YETISPEED,
+				    STRAIGHT),
+			  this.width,
+			  this.height);	    
+    }
+
+    public Slopes setYetiPic(String imgName) {
+	return new Slopes(this.obstacles, this.skier, this.yeti.changePic(imgName),
+			  this.width, this.height);
+    }
     
     public Slopes moveSlopes(int tickDistance) {	
 	PureQueue temp = this.obstacles;
@@ -364,25 +510,20 @@ class Slopes {
 	    }
 	    return new Slopes(temp.moveAll(tickDistance + (int) (5*this.skier.getSpeed()),
 					   5*this.skier.getDirection()), 
-			      this.skier, this.width, this.height);
+			      this.skier,
+			      this.yeti.move(-this.skier.getDirection(),
+					     (int) -(tickDistance*this.skier.getSpeed())).moveTowards(this.skier.getPosn(), tickDistance),
+			      this.width, this.height);
 	}
     }
 
-
-    //EFFECTS: returns true if the player is overlapping with a
-    // particular obstacle
-    public boolean collidingHuh(Collidable c, Player p) {
-	return Math.abs(c.getPosn().x - p.getPosn().x) <
-	    (c.getWidth()/2 + p.getWidth()/2) &&
-	    Math.abs(c.getPosn().y - p.getPosn().y) <
-	    (c.getHeight()/2 + p.getHeight()/2);
-    }
 
     //EFFECTS: returns true if the player is overlapping with
     // any of the obstacles on the field
     public boolean isCollisionHuh(PureQueue c) {
 	try {
-	    return collidingHuh(c.getFirst(), this.skier) ||
+	    return this.skier.collidingHuh(this.yeti) ||
+		this.skier.collidingHuh(c.getFirst()) ||
 		isCollisionHuh(c.getOthers());
 	}
 	catch(NullQueueException e) {
@@ -396,6 +537,10 @@ class Slopes {
 
     public Player getSkier() {
 	return this.skier;
+    }
+
+    public EnemySpace getYeti() {
+	return this.yeti;
     }
     
     public int getWidth() {
@@ -415,6 +560,7 @@ public class SkiFree extends World {
     int height;
     Slopes slopes;
     int score;
+    int yetiCount;
     static final int LEFTER = -2;
     static final int LEFT = -1;
     static final int STRAIGHT = 0;
@@ -422,14 +568,16 @@ public class SkiFree extends World {
     static final int RIGHTER = 2;
     static final double SLOW = .75;
     static final double NORMAL = 1.0;
-    static final double FAST = 1.25;
+    static final double YETISPEED = 1.4;
+    static final double FAST = 1.6;
     static final int TICKDISTANCE = 10;
 
-    SkiFree(Slopes slopes, int width, int height, int score) {
+    SkiFree(Slopes slopes, int width, int height, int score, int yetiCount) {
 	this.width = width;
 	this.height = height;
 	this.slopes = slopes;
 	this.score = score;
+	this.yetiCount = yetiCount;
     }
 
     public World onKeyEvent(String key) {
@@ -437,51 +585,58 @@ public class SkiFree extends World {
 	if(key.equals("left") && (dir==LEFT || dir==LEFTER)) {		
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
 					  slopes.getSkier().changeCourse(SLOW, LEFTER, "Images/playerVeryLeft.png"),
+					  slopes.getYeti(),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height, this.score);
+			       this.width, this.height, this.score, this.yetiCount);
 
 	} else if(key.equals("left")) {		
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
 					  slopes.getSkier().changeCourse(NORMAL, LEFT, "Images/playerSomeLeft.png"),
+					  slopes.getYeti(),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height, this.score);
+			       this.width, this.height, this.score, this.yetiCount);
 	    
 	} else if(key.equals("right") && (dir==RIGHT || dir==RIGHTER)) {
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
 					  slopes.getSkier().changeCourse(SLOW, RIGHTER, "Images/playerVeryRight.png"),
+					  slopes.getYeti(),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height, this.score);
+			       this.width, this.height, this.score, this.yetiCount);
 	    
 	} else if(key.equals("right")) {
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
 					  slopes.getSkier().changeCourse(NORMAL, RIGHT, "Images/playerSomeRight.png"),
+					  slopes.getYeti(),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height, this.score);
+			       this.width, this.height, this.score, this.yetiCount);
 	    
 	} else if(key.equals("down") && dir==STRAIGHT) {
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
 					  slopes.getSkier().changeCourse(FAST, STRAIGHT, "Images/playerStraight.png"),
+					  slopes.getYeti(),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height, this.score);
+			       this.width, this.height, this.score, this.yetiCount);
 	    
 	} else if(key.equals("down")) {
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
 					  slopes.getSkier().changeCourse(NORMAL, STRAIGHT, "Images/playerStraight.png"),
+					  slopes.getYeti(),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height, this.score);
+			       this.width, this.height, this.score, this.yetiCount);
 	    
 	} else if(key.equals("up") && dir==STRAIGHT) {
 	    return new SkiFree(new Slopes(slopes.getObstacles(),
 					  slopes.getSkier().changeCourse(SLOW, STRAIGHT, "Images/playerStraight.png"),
+					  slopes.getYeti(),
 					  slopes.getWidth(),
 					  slopes.getHeight()),
-			       this.width, this.height, this.score);
+			       this.width, this.height, this.score, this.yetiCount);
 	    
 	} else if(key.equals("q")) {
 	    return this.endOfWorld("Thanks for playing!");
@@ -490,19 +645,55 @@ public class SkiFree extends World {
     }
 
     public World onTick() {
-	return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
-						    slopes.getSkier().getSpeed())),
-			   this.width, this.height,
-			   ((int) (this.score +  1.5*this.slopes.getSkier().getSpeed())));
-
+	if(this.yetiCount % 500 == 0 && this.slopes.yeti.emptyHuh()) {
+	    return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * slopes.getSkier().getSpeed())).addYeti(),
+			       this.width, this.height,
+			       (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+			       this.yetiCount + 1);
+	} else if(yetiCount % 40 == 0) {
+	    return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * 
+							slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-2.png"),
+			       this.width, this.height,
+			       (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+			       this.yetiCount + 1);
+	} else if(yetiCount % 20 == 0) {
+	    return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
+							slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-1.png"),
+			       this.width, this.height,
+			       (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+			       this.yetiCount + 1);
+	} else {
+	    return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
+							slopes.getSkier().getSpeed())),
+			       this.width, this.height,
+			       (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+			       this.yetiCount + 1);
+	}
     }
     
     public WorldImage makeImage() {
-	return new OverlayImages( slopes.getObstacles().drawAll(),
-				  new OverlayImages(new TextImage(new Posn(this.width-100, 100),
-								  "Score: " + this.score,
-								  Color.BLUE),
-						    slopes.getSkier().getImage()));		 
+	try {
+	return new OverlayImages(slopes.getObstacles().drawAll(),
+				 new OverlayImages(new RectangleImage(new Posn(this.width-60, 30),
+								      100,
+								      40,
+								      Color.DARK_GRAY),
+						   new OverlayImages(new TextImage(new Posn(this.width-60, 30),
+										   "Score: " + this.score,
+										   Color.BLUE),
+								     new OverlayImages(slopes.getSkier().getImage(),
+										       slopes.getYeti().getImage()))));
+	} catch(NoEnemyException e) {
+	return new OverlayImages(slopes.getObstacles().drawAll(),
+				 new OverlayImages(new RectangleImage(new Posn(this.width-60, 30),
+								      100,
+								      40,
+								      Color.DARK_GRAY),
+						   new OverlayImages(new TextImage(new Posn(this.width-60, 30),
+										   "Score: " + this.score,
+										   Color.BLUE),
+								     slopes.getSkier().getImage())));
+	}		 
     }
 
     public WorldImage lastImage(String s) {
@@ -538,12 +729,20 @@ public class SkiFree extends World {
     } 
 
     public static void main(String[] args) {
+	int slpWidth = 1000;
+	int slpHeight = 700;
+
+	int width = 900;
+	int height = 600;
+	
+	int yetiStart = 1;
+
 	PureQueue qu = new NullQueue();
-	Player plyr = new Player(new Posn(400, 200), 30, 30,
+	Player plyr = new Player(new Posn(width/2, height*2/5), 30, 30,
 				 "Images/playerStraight.png", NORMAL, STRAIGHT);
-	Slopes slps = new Slopes(qu, plyr, 1000, 800);
-	SkiFree s = new SkiFree(slps, 800, 600, 0);
-	s.bigBang(800, 600, .03);
+	Slopes slps = new Slopes(qu, plyr, slpWidth, slpHeight);
+	SkiFree s = new SkiFree(slps, width, height, 0, yetiStart);
+	s.bigBang(width, height, .035);
     }
     
 }

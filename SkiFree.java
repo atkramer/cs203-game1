@@ -71,11 +71,11 @@ class Obstacle implements Collidable {
     public static Obstacle randObstacle(Posn position) {
 	double rand = Math.random();
 	if(rand <= .33) {
-	    return new Obstacle(position, 15, 30, "Images/tree.png");
+	    return new Obstacle(position, 15, 25, "Images/tree.png");
 	} else if(rand <= .66) {
 	    return new Obstacle(position, 35, 15, "Images/log.png");
 	} else {
-	    return new Obstacle(position, 20, 15, "Images/rock.png");
+	    return new Obstacle(position, 20, 10, "Images/rock.png");
 	}
     }
     
@@ -561,159 +561,225 @@ public class SkiFree extends World {
     Slopes slopes;
     int score;
     int yetiCount;
+    int state;
+
+    static final int START = 0;
+    static final int GAME = 1;
+    static final int CRASH = 2;
+    static final int GAMEOVER = 3;
+
     static final int LEFTER = -2;
     static final int LEFT = -1;
     static final int STRAIGHT = 0;
     static final int RIGHT = 1;
     static final int RIGHTER = 2;
+
     static final double SLOW = .75;
     static final double NORMAL = 1.0;
     static final double YETISPEED = 1.4;
     static final double FAST = 1.6;
+
     static final int TICKDISTANCE = 10;
 
-    SkiFree(Slopes slopes, int width, int height, int score, int yetiCount) {
+    SkiFree(Slopes slopes, int width, int height, int score, int yetiCount, int state) {
+	this.slopes = slopes;
 	this.width = width;
 	this.height = height;
-	this.slopes = slopes;
 	this.score = score;
 	this.yetiCount = yetiCount;
+	this.state = state;
+    }
+
+    public World restart() {
+	return new SkiFree(new Slopes(new NullQueue(),
+				      new Player(this.slopes.getSkier().getPosn(),
+						 this.slopes.getSkier().getWidth(),
+						 this.slopes.getSkier().getHeight(),
+						 "Images/playerStraight.png",
+						 NORMAL,
+						 STRAIGHT),
+				      new NoEnemy(),
+				      this.slopes.getWidth(), this.slopes.getHeight()),
+			   this.width, this.height,
+			   0,
+			   1,
+			   GAME);
     }
 
     public World onKeyEvent(String key) {
-	int dir = this.slopes.getSkier().getDirection();
-	if(key.equals("left") && (dir==LEFT || dir==LEFTER)) {		
-	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(SLOW, LEFTER, "Images/playerVeryLeft.png"),
-					  slopes.getYeti(),
-					  slopes.getWidth(),
-					  slopes.getHeight()),
-			       this.width, this.height, this.score, this.yetiCount);
-
-	} else if(key.equals("left")) {		
-	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(NORMAL, LEFT, "Images/playerSomeLeft.png"),
-					  slopes.getYeti(),
-					  slopes.getWidth(),
-					  slopes.getHeight()),
-			       this.width, this.height, this.score, this.yetiCount);
-	    
-	} else if(key.equals("right") && (dir==RIGHT || dir==RIGHTER)) {
-	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(SLOW, RIGHTER, "Images/playerVeryRight.png"),
-					  slopes.getYeti(),
-					  slopes.getWidth(),
-					  slopes.getHeight()),
-			       this.width, this.height, this.score, this.yetiCount);
-	    
-	} else if(key.equals("right")) {
-	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(NORMAL, RIGHT, "Images/playerSomeRight.png"),
-					  slopes.getYeti(),
-					  slopes.getWidth(),
-					  slopes.getHeight()),
-			       this.width, this.height, this.score, this.yetiCount);
-	    
-	} else if(key.equals("down") && dir==STRAIGHT) {
-	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(FAST, STRAIGHT, "Images/playerStraight.png"),
-					  slopes.getYeti(),
-					  slopes.getWidth(),
-					  slopes.getHeight()),
-			       this.width, this.height, this.score, this.yetiCount);
-	    
-	} else if(key.equals("down")) {
-	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(NORMAL, STRAIGHT, "Images/playerStraight.png"),
-					  slopes.getYeti(),
-					  slopes.getWidth(),
-					  slopes.getHeight()),
-			       this.width, this.height, this.score, this.yetiCount);
-	    
-	} else if(key.equals("up") && dir==STRAIGHT) {
-	    return new SkiFree(new Slopes(slopes.getObstacles(),
-					  slopes.getSkier().changeCourse(SLOW, STRAIGHT, "Images/playerStraight.png"),
-					  slopes.getYeti(),
-					  slopes.getWidth(),
-					  slopes.getHeight()),
-			       this.width, this.height, this.score, this.yetiCount);
-	    
-	} else if(key.equals("q")) {
-	    return this.endOfWorld("Thanks for playing!");
-	} else
-	    return this;
+	if(this.state == START || this.state == GAMEOVER) {
+	    if(key.equals("n")) {
+		return this.restart();
+	    } else {
+		return this;
+	    }
+	} else if(this.state == GAME) {
+	    int dir = this.slopes.getSkier().getDirection();
+	    if(key.equals("left") && (dir==LEFT || dir==LEFTER)) {		
+		return new SkiFree(new Slopes(slopes.getObstacles(),
+					      slopes.getSkier().changeCourse(SLOW, LEFTER, "Images/playerVeryLeft.png"),
+					      slopes.getYeti(),
+					      slopes.getWidth(),
+					      slopes.getHeight()),
+				   this.width, this.height, this.score, this.yetiCount, this.state);
+		
+	    } else if(key.equals("left")) {		
+		return new SkiFree(new Slopes(slopes.getObstacles(),
+					      slopes.getSkier().changeCourse(NORMAL, LEFT, "Images/playerSomeLeft.png"),
+					      slopes.getYeti(),
+					      slopes.getWidth(),
+					      slopes.getHeight()),
+				   this.width, this.height, this.score, this.yetiCount, this.state);
+		
+	    } else if(key.equals("right") && (dir==RIGHT || dir==RIGHTER)) {
+		return new SkiFree(new Slopes(slopes.getObstacles(),
+					      slopes.getSkier().changeCourse(SLOW, RIGHTER, "Images/playerVeryRight.png"),
+					      slopes.getYeti(),
+					      slopes.getWidth(),
+					      slopes.getHeight()),
+				   this.width, this.height, this.score, this.yetiCount, this.state);
+		
+	    } else if(key.equals("right")) {
+		return new SkiFree(new Slopes(slopes.getObstacles(),
+					      slopes.getSkier().changeCourse(NORMAL, RIGHT, "Images/playerSomeRight.png"),
+					      slopes.getYeti(),
+					      slopes.getWidth(),
+					      slopes.getHeight()),
+				   this.width, this.height, this.score, this.yetiCount, this.state);
+		
+	    } else if(key.equals("down") && dir==STRAIGHT) {
+		return new SkiFree(new Slopes(slopes.getObstacles(),
+					      slopes.getSkier().changeCourse(FAST, STRAIGHT, "Images/playerStraight.png"),
+					      slopes.getYeti(),
+					      slopes.getWidth(),
+					      slopes.getHeight()),
+				   this.width, this.height, this.score, this.yetiCount, this.state);
+		
+	    } else if(key.equals("down")) {
+		return new SkiFree(new Slopes(slopes.getObstacles(),
+					      slopes.getSkier().changeCourse(NORMAL, STRAIGHT, "Images/playerStraight.png"),
+					      slopes.getYeti(),
+					      slopes.getWidth(),
+					      slopes.getHeight()),
+				   this.width, this.height, this.score, this.yetiCount, this.state);
+		
+	    } else if(key.equals("up") && dir==STRAIGHT) {
+		return new SkiFree(new Slopes(slopes.getObstacles(),
+					      slopes.getSkier().changeCourse(SLOW, STRAIGHT, "Images/playerStraight.png"),
+					      slopes.getYeti(),
+					      slopes.getWidth(),
+					      slopes.getHeight()),
+				   this.width, this.height, this.score, this.yetiCount, this.state);
+		
+	    } else if(key.equals("q")) {
+		return new SkiFree(this.slopes, this.width, this.height,
+				   this.score, this.yetiCount, GAMEOVER);
+	    } else
+		return this;
+	} else {
+	    if(!key.equals("")) {
+		return new SkiFree(this.slopes, this.width, this.height,
+				   this.score, this.yetiCount, GAMEOVER);
+	    }
+	    else {
+		return this;
+	    }
+	}
     }
 
     public World onTick() {
-	if(this.yetiCount % 500 == 0 && this.slopes.yeti.emptyHuh()) {
-	    return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * slopes.getSkier().getSpeed())).addYeti(),
-			       this.width, this.height,
-			       (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
-			       this.yetiCount + 1);
-	} else if(yetiCount % 40 == 0) {
-	    return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * 
-							slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-2.png"),
-			       this.width, this.height,
-			       (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
-			       this.yetiCount + 1);
-	} else if(yetiCount % 20 == 0) {
-	    return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
-							slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-1.png"),
-			       this.width, this.height,
-			       (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
-			       this.yetiCount + 1);
+	if(this.state == GAME) {
+	    if(this.slopes.isCollisionHuh(this.slopes.getObstacles())) {
+		return new SkiFree(this.slopes, this.width, this.height,
+				   this.score, this.yetiCount, CRASH);
+	    } else if(this.yetiCount % 500 == 0 && this.slopes.yeti.emptyHuh()) {
+		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * slopes.getSkier().getSpeed())).addYeti(),
+				   this.width, this.height,
+				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+				   this.yetiCount + 1, this.state);
+	    } else if(yetiCount % 40 == 0) {
+		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * 
+							    slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-2.png"),
+				   this.width, this.height,
+				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+				   this.yetiCount + 1, this.state);
+	    } else if(yetiCount % 20 == 0) {
+		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
+							    slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-1.png"),
+				   this.width, this.height,
+				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+				   this.yetiCount + 1, this.state);
+	    } else {
+		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
+							    slopes.getSkier().getSpeed())),
+				   this.width, this.height,
+				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+				   this.yetiCount + 1, this.state);
+	    }
 	} else {
-	    return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
-							slopes.getSkier().getSpeed())),
-			       this.width, this.height,
-			       (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
-			       this.yetiCount + 1);
+	    return this;
 	}
     }
     
     public WorldImage makeImage() {
-	try {
-	return new OverlayImages(slopes.getObstacles().drawAll(),
-				 new OverlayImages(new RectangleImage(new Posn(this.width-60, 30),
-								      100,
-								      40,
-								      Color.DARK_GRAY),
-						   new OverlayImages(new TextImage(new Posn(this.width-60, 30),
-										   "Score: " + this.score,
-										   Color.BLUE),
-								     new OverlayImages(slopes.getSkier().getImage(),
-										       slopes.getYeti().getImage()))));
-	} catch(NoEnemyException e) {
-	return new OverlayImages(slopes.getObstacles().drawAll(),
-				 new OverlayImages(new RectangleImage(new Posn(this.width-60, 30),
-								      100,
-								      40,
-								      Color.DARK_GRAY),
-						   new OverlayImages(new TextImage(new Posn(this.width-60, 30),
-										   "Score: " + this.score,
-										   Color.BLUE),
-								     slopes.getSkier().getImage())));
+	if(this.state == GAME || this.state == CRASH) {
+	    try {
+		return new OverlayImages(slopes.getObstacles().drawAll(),
+					 new OverlayImages(new RectangleImage(new Posn(this.width-60, 30),
+									      100,
+									      40,
+									      Color.DARK_GRAY),
+							   new OverlayImages(new TextImage(new Posn(this.width-60, 30),
+											   "Score: " + this.score,
+											   Color.BLUE),
+									     new OverlayImages(slopes.getSkier().getImage(),
+											       slopes.getYeti().getImage()))));
+	    } catch(NoEnemyException e) {
+		return new OverlayImages(slopes.getObstacles().drawAll(),
+					 new OverlayImages(new RectangleImage(new Posn(this.width-60, 30),
+									      100,
+									      40,
+									      Color.DARK_GRAY),
+							   new OverlayImages(new TextImage(new Posn(this.width-60, 30),
+											   "Score: " + this.score,
+											   Color.BLUE),
+									     slopes.getSkier().getImage())));
+	    }
+	} else if(this.state == GAMEOVER) {
+	    return new OverlayImages(new RectangleImage(new Posn(this.width/2, this.height/2),
+							this.width,
+							this.height,
+							Color.BLACK),
+				     new OverlayImages(new TextImage(this.slopes.getSkier().getPosn(),
+								     "GAME OVER: Press N to restart!",
+								     20,
+								     Color.RED),
+						       //Second text image to display score on a new line, since
+						       //TextImage doesn't work with escape characters
+						       new TextImage(new Posn(this.slopes.getSkier().getPosn().x,
+									      this.slopes.getSkier().getPosn().y + 50),
+								     "You scored " + this.score + " points!",
+								     30,
+								     Color.RED)));
+	} else {
+	    return new OverlayImages(new RectangleImage(new Posn(this.width/2, this.height/2),
+							this.width,
+							this.height,
+							Color.BLACK),
+				     new TextImage(this.slopes.getSkier().getPosn(),
+						   "Press N to start the game!",
+						   30,
+						   Color.RED));
 	}		 
     }
 
     public WorldImage lastImage(String s) {
-	return new OverlayImages(new RectangleImage(new Posn(this.width/2, this.height/2),
-						    this.width,
-						    this.height,
-						    Color.BLACK),
-				 new OverlayImages(new TextImage(this.slopes.getSkier().getPosn(),
-								 s,
-								 20,
-								 Color.RED),
-						   //Second text image to display score on a new line, since
-						   //TextImage doesn't work with escape characters
-						   new TextImage(new Posn(this.slopes.getSkier().getPosn().x,
-									  this.slopes.getSkier().getPosn().y + 50),
-								 "You scored " + this.score + " points!",
-								 30,
-								 Color.RED)));
+	return new TextImage (this.slopes.getSkier().getPosn(),
+			      s,
+			      30,
+			      Color.RED);
     }
-
+    /*
     public WorldEnd worldEnds() {
 	if(this.slopes.isCollisionHuh(this.slopes.obstacles)) {
 	    try {
@@ -726,14 +792,14 @@ public class SkiFree extends World {
 	} else {
 	    return new WorldEnd(false, this.makeImage());
 	}
-    } 
+	}  */
 
     public static void main(String[] args) {
-	int slpWidth = 1000;
-	int slpHeight = 700;
+	int slpWidth = 800;
+	int slpHeight = 800;
 
-	int width = 900;
-	int height = 600;
+	int width = 700;
+	int height = 700;
 	
 	int yetiStart = 1;
 
@@ -741,7 +807,7 @@ public class SkiFree extends World {
 	Player plyr = new Player(new Posn(width/2, height*2/5), 30, 30,
 				 "Images/playerStraight.png", NORMAL, STRAIGHT);
 	Slopes slps = new Slopes(qu, plyr, slpWidth, slpHeight);
-	SkiFree s = new SkiFree(slps, width, height, 0, yetiStart);
+	SkiFree s = new SkiFree(slps, width, height, 0, yetiStart, START);
 	s.bigBang(width, height, .035);
     }
     

@@ -56,7 +56,10 @@ class Obstacle implements Collidable {
     public Obstacle move(Posn position) {
 	return new Obstacle(position, this.width, this.height, this.imgName);
     }
+    
 
+    //EFFECT: Return true if this Obstacle is overlapping at all with the
+    //        given Collidable, false otherwise
     public boolean collidingHuh(Collidable c) {
 	try {
 	    return Math.abs(c.getPosn().x - this.position.x) <
@@ -68,6 +71,9 @@ class Obstacle implements Collidable {
 	}
     }
     
+    
+    //EFFECT: Return one of three pre-determined Obstacles at the given
+    //        position
     public static Obstacle randObstacle(Posn position) {
 	double rand = Math.random();
 	if(rand <= .33) {
@@ -154,6 +160,9 @@ class Player implements Collidable {
 			  this.height, this.imgName, this.speed, this.direction);
     }
 
+
+    //EFFECT: Return true if this player is overlapping at all with the given
+    //        Collidable, and false otherwise
     public boolean collidingHuh(Collidable c) {
 	try {
 	    return Math.abs(c.getPosn().x - this.position.x) <
@@ -176,7 +185,6 @@ interface EnemySpace extends Collidable{
     int getHeight() throws NoEnemyException;
     FromFileImage getImage() throws NoEnemyException;
     double getSpeed() throws NoEnemyException;
-    int getDirection() throws NoEnemyException;
     boolean collidingHuh(Collidable c);
     EnemySpace move(Posn position);
     EnemySpace move(int dx, int dy);
@@ -184,11 +192,17 @@ interface EnemySpace extends Collidable{
     EnemySpace changePic(String imgName);
 } 
 
+
+//Exception to be created when a program tries to access some information
+//about an Enemy not present in the NoEnemy class
 class NoEnemyException extends Exception {
     NoEnemyException(String message) {
 	super(message);
     }
 }
+
+//Class to represent the option of having no Enemy
+//Implements EnemySpace
 
 class NoEnemy implements EnemySpace{
     public boolean emptyHuh() {
@@ -207,9 +221,6 @@ class NoEnemy implements EnemySpace{
 	throw new NoEnemyException("Nothing here");
     }
     public double getSpeed() throws NoEnemyException {
-	throw new NoEnemyException("Nothing here");
-    }
-    public int getDirection() throws NoEnemyException {
 	throw new NoEnemyException("Nothing here");
     }
     public boolean collidingHuh(Collidable c) {
@@ -243,13 +254,12 @@ class Enemy implements EnemySpace{
     //---//---// Constructors //---//---//
 
     Enemy(Posn position, int width, int height,
-	  String imgName, double speed, int direction) {
+	  String imgName, double speed) {
 	this.position = position;
 	this.width = width;
 	this.height = height;
 	this.imgName = imgName;
 	this.speed = speed;
-	this.direction = direction;
     }
     
     //---//---// Methods //---//---//
@@ -277,43 +287,60 @@ class Enemy implements EnemySpace{
     public double getSpeed() {
 	return this.speed;
     }
+    
 
-    public int getDirection() {
-	return this.direction;
-    }
-
+    //EFFECT: Return a new Enemy that is like this, but with its Posn set to the
+    //        one given
     public EnemySpace move(Posn position) {
 	return new Enemy(position, this.width, this.height,
-			 this.imgName, this.speed, this.direction);
+			 this.imgName, this.speed);
     }
 
+
+    //EFFECT: Return a new Enemy that is like this, but with its Posn moved by the 
+    //        given values
     public EnemySpace move(int dx, int dy) {
 	return new Enemy(new Posn(this.position.x + dx, this.position.y + dy),
-			 this.width, this.height, this.imgName, this.speed,
-			 this.direction);
+			 this.width, this.height, this.imgName, this.speed);
     }
 
+
+    //EFFECT: Returns a new Enemy that is like this, but moved the given
+    //        distance towards the given destination POSN
     public EnemySpace moveTowards(Posn destination, int distance) {
+	//The total distance between the EnemySpace and the DESTINATION
 	int distToTarget = (int) Math.hypot(destination.x-this.position.x,
 					 destination.y-this.position.y);
 	int xDist = (destination.x - this.position.x);
 	int yDist = (destination.y - this.position.y);
+	//The new x-distance to be traveled, that will cause the Enemy to move
+	//a total of DISTANCE towards the destination
 	int newX = (distance*xDist)/distToTarget;
+	//The new y-distance to be traveled, that will cause the Enemy to move
+	//a total of DISTANCE towards the destination
 	int newY = (distance*yDist)/distToTarget;
 	if(distToTarget >= distance) {
 	    return this.move((int) (this.speed*newX), (int) (this.speed*newY));
 	}
+	//If the destination is closer than the given DISTANCE, just move to the 
+	//destination
 	else {
 	    return this.move((int) (this.speed*xDist), (int) (this.speed*yDist));
 	}
 
     }
+    
 
+    //EFFECT: Return a new Enemy with all of the same attributes as this, except
+    //        for the imgName which is set to the given string
     public EnemySpace changePic(String imgName) {
 	return new Enemy(this.position, this.width, this.height, imgName,
-			 this.speed, this.direction);
+			 this.speed);
     }
 
+
+    //EFFECT: Return true if there exists any overlap between this and 
+    //        the given Collidable, false otherwise
     public boolean collidingHuh(Collidable c) {
 	try {
 	    return Math.abs(c.getPosn().x - this.position.x) <
@@ -333,8 +360,6 @@ class Enemy implements EnemySpace{
 
 //Exception for the case when an attempt is made to access an element
 // of the null Queue
-// -- This part I'm really unsure on. Is this the correct situation to
-//    use an exception, and if so, is this exception implemented correctly?
 class NullQueueException extends Exception {
     NullQueueException(String message) {
 	super(message);
@@ -472,24 +497,36 @@ class Slopes {
 
     //---//---// Methods //---//---//
     
+
+    //EFFECT: Return a new Slopes, with the current EnemySpace of Slopes changed
+    //        to a new Enemy, added at a random location at the top of Slopes, and
+    //        the rest of the attributes of Slopes unchanged
     public Slopes addYeti() {
 	return new Slopes(this.obstacles,
 			  this.skier,
 			  new Enemy(new Posn((int) (Math.random() * this.width), 0),
 				    30,
 				    40,
-				    "Images/yeti-1.png",
-				    YETISPEED,
-				    STRAIGHT),
+				    "Images/yeti-1-left.png",
+				    YETISPEED),
 			  this.width,
 			  this.height);	    
     }
-
+    
+    //EFFECT: Return a new Slopes with all attributes unchanged except for the Enemy,
+    //        which is replaced by an Enemy with the same attributes, except for a
+    //        new String for the image name
     public Slopes setYetiPic(String imgName) {
 	return new Slopes(this.obstacles, this.skier, this.yeti.changePic(imgName),
 			  this.width, this.height);
     }
     
+
+    //EFFECT: Return a new Slopes, with all of the obstacles in the queue and the enemy
+    //        moved a distance based on the Player's speed and direction, and then the Enemy
+    //        moved toward the Player. In addition to moving Obstacles, it has a change to randomly
+    //        add an Obstacle to the Queue, and will remove any Obstacle that goes above the
+    //        top of Slopes
     public Slopes moveSlopes(int tickDistance) {	
 	PureQueue temp = this.obstacles;
 	try {
@@ -552,6 +589,9 @@ class Slopes {
     }
 }
 
+enum GameState {
+    START, GAME, CRASH, GAMEOVER
+}
 
 public class SkiFree extends World {
    
@@ -561,12 +601,7 @@ public class SkiFree extends World {
     Slopes slopes;
     int score;
     int yetiCount;
-    int state;
-
-    static final int START = 0;
-    static final int GAME = 1;
-    static final int CRASH = 2;
-    static final int GAMEOVER = 3;
+    GameState state;
 
     static final int LEFTER = -2;
     static final int LEFT = -1;
@@ -581,7 +616,7 @@ public class SkiFree extends World {
 
     static final int TICKDISTANCE = 10;
 
-    SkiFree(Slopes slopes, int width, int height, int score, int yetiCount, int state) {
+    SkiFree(Slopes slopes, int width, int height, int score, int yetiCount, GameState state) {
 	this.slopes = slopes;
 	this.width = width;
 	this.height = height;
@@ -590,6 +625,33 @@ public class SkiFree extends World {
 	this.state = state;
     }
 
+    public Slopes getSlopes() {
+	return this.slopes;
+    }
+
+    public int getWidth() {
+	return this.width;
+    }
+
+    public int getHeight() {
+	return this.height;
+    }
+
+    public int getScore() {
+	return this.score;
+    }
+
+    public int getYetiCount() {
+	return this.yetiCount;
+    }
+
+    public GameState getState() {
+	return this.state;
+    }
+
+
+    //EFFECT: Returns a new SkiFree with the same dimensions as the one this is called
+    //        on, and all other attributes initialized for the beginning of the game
     public World restart() {
 	return new SkiFree(new Slopes(new NullQueue(),
 				      new Player(this.slopes.getSkier().getPosn(),
@@ -603,17 +665,24 @@ public class SkiFree extends World {
 			   this.width, this.height,
 			   0,
 			   1,
-			   GAME);
+			   GameState.GAME);
     }
 
+
+    //EFFECT: Return a new SkiFree with the proper changes made based on key input from
+    //        the user, and the current state of the game
     public World onKeyEvent(String key) {
-	if(this.state == START || this.state == GAMEOVER) {
+	//If the game's in the START or GAMEOVER state, only recognize "N", and restart
+	//the game on that input
+	if(this.state == GameState.START || this.state == GameState.GAMEOVER) {
 	    if(key.equals("n")) {
 		return this.restart();
 	    } else {
 		return this;
 	    }
-	} else if(this.state == GAME) {
+	    //If the game's in the GAME state, then recognize arrow key input, changing the 
+	    //player accordingly, and recognize "Q", ending the game
+	} else if(this.state == GameState.GAME) {
 	    int dir = this.slopes.getSkier().getDirection();
 	    if(key.equals("left") && (dir==LEFT || dir==LEFTER)) {		
 		return new SkiFree(new Slopes(slopes.getObstacles(),
@@ -673,39 +742,65 @@ public class SkiFree extends World {
 		
 	    } else if(key.equals("q")) {
 		return new SkiFree(this.slopes, this.width, this.height,
-				   this.score, this.yetiCount, GAMEOVER);
+				   this.score, this.yetiCount, GameState.GAMEOVER);
 	    } else
 		return this;
+	    //If the game's currently in the CRASH state, then on any key input switch
+	    //to the GAMEOVER state
 	} else {
 	    if(!key.equals("")) {
 		return new SkiFree(this.slopes, this.width, this.height,
-				   this.score, this.yetiCount, GAMEOVER);
+				   this.score, this.yetiCount, GameState.GAMEOVER);
 	    }
 	    else {
 		return this;
 	    }
 	}
     }
+    
+    //EFFECT: Returns true if the yeti is to the left of the player
+    //        Used to determine which yeti image to use
+    private boolean yetiLeftHuh() {
+	try {
+	return this.slopes.getYeti().getPosn().x < this.slopes.getSkier().getPosn().x;
+	} catch(NoEnemyException e) {
+	    return false;
+	}
+    }
 
     public World onTick() {
-	if(this.state == GAME) {
+	//If the game's in the GAME state, then move the slopes, update the score, and increment
+	//the yetiCount accordingly
+	if(this.state == GameState.GAME) {
 	    if(this.slopes.isCollisionHuh(this.slopes.getObstacles())) {
 		return new SkiFree(this.slopes, this.width, this.height,
-				   this.score, this.yetiCount, CRASH);
+				   this.score, this.yetiCount, GameState.CRASH);
 	    } else if(this.yetiCount % 500 == 0 && this.slopes.yeti.emptyHuh()) {
 		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * slopes.getSkier().getSpeed())).addYeti(),
 				   this.width, this.height,
 				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
 				   this.yetiCount + 1, this.state);
-	    } else if(yetiCount % 40 == 0) {
+	    } else if(yetiCount % 20 == 0 && yetiLeftHuh()) {
 		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * 
-							    slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-2.png"),
+							    slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-2-left.png"),
 				   this.width, this.height,
 				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
 				   this.yetiCount + 1, this.state);
 	    } else if(yetiCount % 20 == 0) {
+		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * 
+							    slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-2-right.png"),
+				   this.width, this.height,
+				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+				   this.yetiCount + 1, this.state);
+	    } else if(yetiCount % 10 == 0 && yetiLeftHuh()) {
 		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
-							    slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-1.png"),
+							    slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-1-left.png"),
+				   this.width, this.height,
+				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+				   this.yetiCount + 1, this.state);
+	    } else if(yetiCount % 10 == 0) {
+		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE *
+							    slopes.getSkier().getSpeed())).setYetiPic("Images/yeti-1-right.png"),
 				   this.width, this.height,
 				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
 				   this.yetiCount + 1, this.state);
@@ -716,13 +811,17 @@ public class SkiFree extends World {
 				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
 				   this.yetiCount + 1, this.state);
 	    }
+	    //If the game's in any state beside GAME, nothing should be updating on a new tick, so just return this
 	} else {
 	    return this;
 	}
     }
     
+
+    //EFFECT: Return an image appropriate to the game's current state
     public WorldImage makeImage() {
-	if(this.state == GAME || this.state == CRASH) {
+	//If the game's in the GAME or CRASH state, then draw the Slopes and score counter
+	if(this.state == GameState.GAME || this.state == GameState.CRASH) {
 	    try {
 		return new OverlayImages(slopes.getObstacles().drawAll(),
 					 new OverlayImages(new RectangleImage(new Posn(this.width-60, 30),
@@ -745,7 +844,9 @@ public class SkiFree extends World {
 											   Color.BLUE),
 									     slopes.getSkier().getImage())));
 	    }
-	} else if(this.state == GAMEOVER) {
+	    //If the game's in the GAMEOVER state, just display a black screen with text
+	    //telling the player the game is over and their score
+	} else if(this.state == GameState.GAMEOVER) {
 	    return new OverlayImages(new RectangleImage(new Posn(this.width/2, this.height/2),
 							this.width,
 							this.height,
@@ -761,6 +862,8 @@ public class SkiFree extends World {
 								     "You scored " + this.score + " points!",
 								     30,
 								     Color.RED)));
+	    //If the game's in the start state, just display a black screen with a message welcoming
+	    //the player to the game
 	} else {
 	    return new OverlayImages(new RectangleImage(new Posn(this.width/2, this.height/2),
 							this.width,
@@ -773,33 +876,12 @@ public class SkiFree extends World {
 	}		 
     }
 
-    public WorldImage lastImage(String s) {
-	return new TextImage (this.slopes.getSkier().getPosn(),
-			      s,
-			      30,
-			      Color.RED);
-    }
-    /*
-    public WorldEnd worldEnds() {
-	if(this.slopes.isCollisionHuh(this.slopes.obstacles)) {
-	    try {
-		Thread.sleep(250);
-	    } catch(InterruptedException e) {
-		Thread.currentThread().interrupt();
-	    } finally {
-		return new WorldEnd(true, this.lastImage("Ouch! Better luck next time!"));
-	    }
-	} else {
-	    return new WorldEnd(false, this.makeImage());
-	}
-	}  */
-
     public static void main(String[] args) {
-	int slpWidth = 800;
-	int slpHeight = 800;
+	int slpWidth = 1366;
+	int slpHeight = 768;
 
-	int width = 700;
-	int height = 700;
+	int width = slpWidth*9/10;
+	int height = slpHeight*9/10;
 	
 	int yetiStart = 1;
 
@@ -807,11 +889,34 @@ public class SkiFree extends World {
 	Player plyr = new Player(new Posn(width/2, height*2/5), 30, 30,
 				 "Images/playerStraight.png", NORMAL, STRAIGHT);
 	Slopes slps = new Slopes(qu, plyr, slpWidth, slpHeight);
-	SkiFree s = new SkiFree(slps, width, height, 0, yetiStart, START);
+	SkiFree s = new SkiFree(slps, width, height, 0, yetiStart, GameState.START);
+	System.out.println(GameState.CRASH == GameState.CRASH);
 	s.bigBang(width, height, .035);
     }
     
 }
 	    
 
+class SkiTests {
+    //To ensure that the amount of memory and processing power does not grow inifinitely
+    //it is necessary to remove Obstacles from the game once they no longer visible.
+    //EFFECT: returns true if there are no obstacles with a negative y-value
+    public boolean anyNegativeTest(SkiFree game) {
+	try {
+	    //If the first in the queue is not negative, the others cannot possibly be
+	    return 0 < game.getSlopes().getObstacles().getFirst().getPosn().y;
+	} catch(NullQueueException e) {
+	    return true;
+	}
+    }
+
+
+    //Whenever the player has crashed into something, the game should be in the CRASH state
+    //EFFECT: Returns true if there is a collision and the game is in state CRASH,
+    //        or if there is not a collision and the game is not in state CRASh
+    public boolean successfulCrashTest(SkiFree game) {
+	return game.getSlopes().isCollisionHuh(game.getSlopes().getObstacles()) == (game.getState() == GameState.CRASH);
+    }
+
     
+} 

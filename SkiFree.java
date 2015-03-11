@@ -530,7 +530,7 @@ class Slopes {
     public Slopes moveSlopes(int tickDistance) {	
 	PureQueue temp = this.obstacles;
 	try {
-	    if(temp.getFirst().getPosn().y <= tickDistance + 5*this.skier.getSpeed()) {
+	    while(temp.getFirst().getPosn().y <= tickDistance + 5*this.skier.getSpeed()) {
 		temp = temp.remove();
 	    }
 	}
@@ -652,7 +652,7 @@ public class SkiFree extends World {
 
     //EFFECT: Returns a new SkiFree with the same dimensions as the one this is called
     //        on, and all other attributes initialized for the beginning of the game
-    public World restart() {
+    public SkiFree restart() {
 	return new SkiFree(new Slopes(new NullQueue(),
 				      new Player(this.slopes.getSkier().getPosn(),
 						 this.slopes.getSkier().getWidth(),
@@ -671,7 +671,7 @@ public class SkiFree extends World {
 
     //EFFECT: Return a new SkiFree with the proper changes made based on key input from
     //        the user, and the current state of the game
-    public World onKeyEvent(String key) {
+    public SkiFree onKeyEvent(String key) {
 	//If the game's in the START or GAMEOVER state, only recognize "N", and restart
 	//the game on that input
 	if(this.state == GameState.START || this.state == GameState.GAMEOVER) {
@@ -768,13 +768,14 @@ public class SkiFree extends World {
 	}
     }
 
-    public World onTick() {
+    public SkiFree onTick() {
 	//If the game's in the GAME state, then move the slopes, update the score, and increment
 	//the yetiCount accordingly
 	if(this.state == GameState.GAME) {
 	    if(this.slopes.isCollisionHuh(this.slopes.getObstacles())) {
 		return new SkiFree(this.slopes, this.width, this.height,
-				   this.score, this.yetiCount, GameState.CRASH);
+				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed())
+				   , this.yetiCount, GameState.CRASH);
 	    } else if(this.yetiCount % 500 == 0 && this.slopes.yeti.emptyHuh()) {
 		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * slopes.getSkier().getSpeed())).addYeti(),
 				   this.width, this.height,
@@ -894,6 +895,245 @@ public class SkiFree extends World {
     }
     
 }
-	    
+
+class SkiTests {
+
+    static final int LEFTER = -2;
+    static final int LEFT = -1;
+    static final int STRAIGHT = 0;
+    static final int RIGHT = 1;
+    static final int RIGHTER = 2;
+
+    static final double SLOW = .75;
+    static final double NORMAL = 1.0;
+    static final double YETISPEED = 1.4;
+    static final double FAST = 1.6;
+
+    //---------------------------------------------------------------------------------//
+    //------------------------------- SINGLE CASE TESTS -------------------------------//
+    //---------------------------------------------------------------------------------//
+
+    //Default values for single case SkiFree instances. Values specific to each test will be
+    //given in that method
+    static int defWidth = 800;
+    static int defHeight = 800;
+    //things for the Slopes
+    static int defSlpWidth = 900;
+    static int defSlpHeight = 900;
+    static PureQueue defObstacles = new NullQueue();
+    static Player defPlayer = new Player(new Posn(defWidth/2, defHeight/(2*5)), 20, 20,
+				  "Images/playerStraight.png", NORMAL, STRAIGHT);
+    static EnemySpace defEnemy = new NoEnemy();
+    //back to SkiFree things
+    static Slopes defSlopes = new Slopes(defObstacles, defPlayer, defEnemy, defSlpWidth, defSlpHeight);
+    static int defYetiCount = 1;
+    static int defScore = 0;
+    static GameState defState = GameState.GAME;
+    static SkiFree defGame = new SkiFree(defSlopes, defWidth, defHeight, defScore, defYetiCount, defState);
+
+    //EFFECT: Returns true if each of the directional key inputs produces the correct response
+    public static boolean testArrowKeys() {
+	return defGame.onKeyEvent("left").getSlopes().getSkier().getDirection() == LEFT &&
+	    defGame.onKeyEvent("left").onKeyEvent("left").getSlopes().getSkier().getDirection() == LEFTER &&
+	    defGame.onKeyEvent("right").getSlopes().getSkier().getDirection() == RIGHT &&
+	    defGame.onKeyEvent("right").onKeyEvent("right").getSlopes().getSkier().getDirection() == RIGHTER &&
+	    defGame.onKeyEvent("down").getSlopes().getSkier().getSpeed() == FAST &&
+	    defGame.onKeyEvent("up").getSlopes().getSkier().getSpeed() == SLOW;
+    }
+
+    //EFFECT: Returns true if entering N in the START and GAMEOVER states results in a game with the GAME state
+    public static boolean testNewGame() {
+	SkiFree startGame = new SkiFree(defSlopes, defWidth, defHeight, defScore, defYetiCount, GameState.START);
+	SkiFree overGame = new SkiFree(defSlopes, defWidth, defHeight, defScore, defYetiCount, GameState.GAMEOVER);
+	return startGame.onKeyEvent("n").getState() == GameState.GAME &&
+	    overGame.onKeyEvent("n").getState() == GameState.GAME;
+    }
+
+    //EFFECT: Returns true if the player's direction produces the correct movement of obstacles
+    public static boolean testObstacleMovement() {
+	Obstacle ob = new Obstacle(new Posn(400,400), 20, 20, "doesn't matter");
+	PureQueue oneOb = new Queue(ob, new NullQueue());
+	Slopes straightSlopes = new Slopes(oneOb, defPlayer, defEnemy, defSlpWidth, defSlpHeight);
+	Slopes rightSlopes = new Slopes(oneOb, defPlayer.changeCourse(NORMAL, RIGHT, ""), defEnemy, defSlpWidth, defSlpHeight);
+	Slopes leftSlopes = new Slopes(oneOb, defPlayer.changeCourse(NORMAL, LEFT, ""), defEnemy, defSlpWidth, defSlpHeight);
+	
+	try {
+	    return (straightSlopes.getObstacles().getFirst().getPosn().y >
+		    straightSlopes.moveSlopes(10).getObstacles().getFirst().getPosn().y) &&
+		(rightSlopes.getObstacles().getFirst().getPosn().x >
+		 rightSlopes.moveSlopes(10).getObstacles().getFirst().getPosn().x) &&
+		(leftSlopes.getObstacles().getFirst().getPosn().x <
+		 leftSlopes.moveSlopes(10).getObstacles().getFirst().getPosn().x);
+	} catch(NullQueueException e) {return true;}
+    }
+    
+
+    //---------------------------------------------------------------------------------//
+    //------------------------------- INVARIANT TESTS ---------------------------------//
+    //---------------------------------------------------------------------------------//
+
+    //To ensure that the amount of memory and processing power does not grow indefinitely
+    //it is necessary to remove Obstacles from the game once they no longer visible.
+    //EFFECT: returns true if the first obstacle in the queue doesn't have a negative y-value
+    public static boolean anyNegativeTest(SkiFree game) {
+	try {
+	    //So long as we make sure the first in the queue is not negative, even though there
+	    //may be some with negative y-values due to objects appearing on the sides, the amount
+	    //of obstacles can not grow without bound.
+	    return 0 <= game.getSlopes().getObstacles().getFirst().getPosn().y;
+	} catch(NullQueueException e) {
+	    return true;
+	}
+    }
+
+
+    //Whenever the player has crashed into something, the game should never be in the GAME state
+    //on the following tick
+    //EFFECT: Returns false if both a collision has been detected and on the following tick the game is still
+    //        in the GAME state, and true otherwise
+    public static boolean successfulCrashTest(SkiFree game) {
+	if(game.getSlopes().isCollisionHuh(game.getSlopes().getObstacles())) {
+	    return game.onTick().getState() != GameState.GAME;
+	} else {
+	    return true;
+	}
+    }
+    
+
+    //The yeti should always be getting closer when its speed is greater than the
+    //player's, and getting further away when its speed is less than the player's
+    //EFFECT: Returns true if the Enemy's speed is greater than the Player's and
+    //        the distance from the Enemy to the Player decreases after calling onTick()
+    //        OR if the Enemy's speed is less than the Player's and the distance from the
+    //        Enemy to the Player increases after calling onTick()
+    public static boolean yetiApproachTest(SkiFree game) {
+	try {
+	    Player skier = game.getSlopes().getSkier();
+	    EnemySpace yeti = game.getSlopes().getYeti();
+	    double currentDist = Math.hypot(skier.getPosn().x - yeti.getPosn().x,
+					    skier.getPosn().y - yeti.getPosn().y);
+	    SkiFree next = game.onTick();
+	    Player nextSkier = next.getSlopes().getSkier();
+	    EnemySpace nextYeti = next.getSlopes().getYeti();
+	    double nextDist = Math.hypot(nextSkier.getPosn().x - nextYeti.getPosn().x,
+					 nextSkier.getPosn().y - nextYeti.getPosn().y);
+	    if(game.getState() != GameState.GAME || next.getState() != GameState.GAME) {
+		return true;
+	    } else if(skier.getSpeed() < yeti.getSpeed()) {
+		return currentDist < nextDist;
+	    } else {
+		return currentDist > nextDist;
+	    }
+	} catch(NoEnemyException e) {
+	    return true;
+	}
+    }
+
+    //During every tick while SkiFree is in state GAME, the score should be increasing,
+    //and during every tick while not in state GAME, the score should stay the same
+    //EFFECT: Returns true if the game is in state GAME and the score is greater after calling
+    //        onTick(), or if the game s not in state GAME, and the score stays the same after
+    //        calling onTick()
+    public static boolean scoreTest(SkiFree game) {
+	return (game.getState() == GameState.GAME && game.getScore() < game.onTick().getScore()) ||
+	    (game.getState() != GameState.GAME && game.getScore() == game.onTick().getScore());
+    }
+
+    public static String[] genKeyInputs(int size) {
+	String[] inputs = new String[size];
+	int chooseKey = (int) (Math.random()*4);
+	for(int i = 0; i < size; i++) {
+	    //Ensures that the inputs will be consistently trying to restart
+	    //the game, so that if a crash occurs early on, the rest of the 
+	    //tests will not be wasted
+	    if(i % 50 == 0) {
+		inputs[i] = "n";
+	    } else if(chooseKey == 0) {
+		inputs[i] = "down";
+	    } else if(chooseKey == 1) {
+		inputs[i] = "right";
+	    } else if(chooseKey == 2) {
+		inputs[i] = "down";
+	    } else {
+		inputs[i] = "left";
+	    }
+	}
+	return inputs;
+    }
+
+    public static void main(String[] args) {
+
+	int failedTests = 0;
+
+	//SINGLE CASE TESTS
+	if(!testArrowKeys()) {
+	    System.out.println("Arrow keys are not properly changing the player");
+	    failedTests++;
+	}
+	if(!testNewGame()) {
+	    System.out.println("N is not properly restarting the game");
+	    failedTests++;
+	}
+	if(!testObstacleMovement()) {
+	    System.out.println("Obstacles are not moving properly");
+	    failedTests++;
+	}
+
+	//INVARIANT TESTS
+	int slpWidth = 1366;
+	int slpHeight = 768;
+
+	int width = slpWidth*9/10;
+	int height = slpHeight*9/10;
+	
+	int yetiStart = 1;
+
+	PureQueue qu = new NullQueue();
+	Player plyr = new Player(new Posn(width/2, height*2/5), 30, 30,
+				 "Images/playerStraight.png", NORMAL, STRAIGHT);
+	Slopes slps = new Slopes(qu, plyr, slpWidth, slpHeight);
+	SkiFree s = new SkiFree(slps, width, height, 0, yetiStart, GameState.START);
+	for(int times = 0; times < 100; times++) {
+	String[] inputs = genKeyInputs(1000);
+
+	for(int i = 0; i < 2*inputs.length; i++) {
+	    if(i%2 == 0) {
+		s = s.onKeyEvent(inputs[i/2]);
+	    } else {
+		s = s.onTick();
+	    }
+	    if(!anyNegativeTest(s)) {
+		System.out.println("An obstacle has a negative Y-value");
+		failedTests++;
+	    }
+	    if(!successfulCrashTest(s)) {
+		System.out.println("Game is not properly handling crashing");
+		failedTests++;
+	    } /*
+	    if(!directionTest(s)) {
+		System.out.println("Something is moving in the wrong direction");
+		failedTests++;
+	    }
+	    if(!forwardTest(s)) {
+		System.out.println("An obstacle is not moving up normally");
+		failedTests++;
+	    } */
+	    if(!yetiApproachTest(s)) {
+		System.out.println("Yeti is not getting closer when it should");
+		failedTests++;
+	    }
+	    if(!scoreTest(s)) {
+		System.out.println("Score is not changing as it should be");
+		failedTests++;
+	    }
+	}
+	System.out.println(failedTests + " tests failed");
+	}    
+	//RESET THE GAME AND RUN IT
+	s = s.restart();
+	s.bigBang(width, height, .035);
+    }
+    
+}	    
 
  

@@ -2,7 +2,6 @@ import javalib.worldimages.*;
 import javalib.funworld.*;
 import javalib.worldcanvas.*;
 import javalib.colors.*;
-import tester.*;
 
 import java.awt.Color;
 
@@ -77,11 +76,11 @@ class Obstacle implements Collidable {
     public static Obstacle randObstacle(Posn position) {
 	double rand = Math.random();
 	if(rand <= .33) {
-	    return new Obstacle(position, 15, 25, "Images/tree.png");
+	    return new Obstacle(position, 10, 25, "Images/tree.png");
 	} else if(rand <= .66) {
 	    return new Obstacle(position, 35, 15, "Images/log.png");
 	} else {
-	    return new Obstacle(position, 20, 10, "Images/rock.png");
+	    return new Obstacle(position, 15, 10, "Images/rock.png");
 	}
     }
     
@@ -249,7 +248,6 @@ class Enemy implements EnemySpace{
     int height;
     String imgName;
     double speed;
-    int direction;
     
     //---//---// Constructors //---//---//
 
@@ -540,16 +538,16 @@ class Slopes {
 		temp = temp.add(Obstacle.randObstacle(new Posn((int) (Math.random() * this.width), this.height)));
 	    }
 	    if(this.skier.getDirection() <= LEFT && Math.random() <= .2 * this.skier.getSpeed()) {
-		temp = temp.add(Obstacle.randObstacle(new Posn(0, (int) (Math.random() * this.height))));
+		temp = temp.add(Obstacle.randObstacle(new Posn(0, (int) (Math.random() * this.height)+80)));
 	    }
 	    if(this.skier.getDirection() >= RIGHT && Math.random() <= .2 * this.skier.getSpeed()) {
-		temp = temp.add(Obstacle.randObstacle(new Posn(this.width, (int) (Math.random() * this.height))));
+		temp = temp.add(Obstacle.randObstacle(new Posn(this.width, (int) (Math.random() * this.height)+80)));
 	    }
 	    return new Slopes(temp.moveAll(tickDistance + (int) (5*this.skier.getSpeed()),
 					   5*this.skier.getDirection()), 
 			      this.skier,
 			      this.yeti.move(-this.skier.getDirection(),
-					     (int) -(tickDistance*this.skier.getSpeed())).moveTowards(this.skier.getPosn(), tickDistance),
+					  (int) (-tickDistance*this.skier.getSpeed())).moveTowards(this.skier.getPosn(), tickDistance),
 			      this.width, this.height);
 	}
     }
@@ -921,7 +919,7 @@ class SkiTests {
     static int defSlpWidth = 900;
     static int defSlpHeight = 900;
     static PureQueue defObstacles = new NullQueue();
-    static Player defPlayer = new Player(new Posn(defWidth/2, defHeight/(2*5)), 20, 20,
+    static Player defPlayer = new Player(new Posn(defWidth/2, defHeight*(2/5)), 20, 20,
 				  "Images/playerStraight.png", NORMAL, STRAIGHT);
     static EnemySpace defEnemy = new NoEnemy();
     //back to SkiFree things
@@ -930,6 +928,20 @@ class SkiTests {
     static int defScore = 0;
     static GameState defState = GameState.GAME;
     static SkiFree defGame = new SkiFree(defSlopes, defWidth, defHeight, defScore, defYetiCount, defState);
+
+    //EFFECT: Returns true if isCollisionHuh() returns true when called on instances of Slopes in which
+    //        the player is overlapping with other objects
+    public static boolean testCollision() {
+	Posn overlap1 = new Posn(defWidth/2 + 10, defHeight*(2/5) - 10);
+	Posn overlap2 = new Posn(defWidth/2 - 10, defHeight*(2/5) + 10);
+	Obstacle overlapOb = new Obstacle(overlap1, 20, 20, "irrelevant");
+	PureQueue overlapQu = defObstacles.add(overlapOb);
+	Slopes obSlopes = new Slopes(overlapQu, defPlayer, defEnemy, defSlpWidth, defSlpHeight);
+	Enemy overlapEn = new Enemy(overlap2, 20, 20, "irrelevant", YETISPEED);
+	Slopes enSlopes = new Slopes(defObstacles, defPlayer, overlapEn, defSlpWidth, defSlpHeight);
+
+	return obSlopes.isCollisionHuh(overlapQu) && enSlopes.isCollisionHuh(defObstacles);
+    }
 
     //EFFECT: Returns true if each of the directional key inputs produces the correct response
     public static boolean testArrowKeys() {
@@ -975,7 +987,7 @@ class SkiTests {
     //To ensure that the amount of memory and processing power does not grow indefinitely
     //it is necessary to remove Obstacles from the game once they no longer visible.
     //EFFECT: returns true if the first obstacle in the queue doesn't have a negative y-value
-    public static boolean anyNegativeTest(SkiFree game) {
+    public static boolean testAnyNegative(SkiFree game) {
 	try {
 	    //So long as we make sure the first in the queue is not negative, even though there
 	    //may be some with negative y-values due to objects appearing on the sides, the amount
@@ -991,7 +1003,7 @@ class SkiTests {
     //on the following tick
     //EFFECT: Returns false if both a collision has been detected and on the following tick the game is still
     //        in the GAME state, and true otherwise
-    public static boolean successfulCrashTest(SkiFree game) {
+    public static boolean testSuccessfulCrash(SkiFree game) {
 	if(game.getSlopes().isCollisionHuh(game.getSlopes().getObstacles())) {
 	    return game.onTick().getState() != GameState.GAME;
 	} else {
@@ -1006,7 +1018,7 @@ class SkiTests {
     //        the distance from the Enemy to the Player decreases after calling onTick()
     //        OR if the Enemy's speed is less than the Player's and the distance from the
     //        Enemy to the Player increases after calling onTick()
-    public static boolean yetiApproachTest(SkiFree game) {
+    public static boolean testYetiApproach(SkiFree game) {
 	try {
 	    Player skier = game.getSlopes().getSkier();
 	    EnemySpace yeti = game.getSlopes().getYeti();
@@ -1020,9 +1032,9 @@ class SkiTests {
 	    if(game.getState() != GameState.GAME || next.getState() != GameState.GAME) {
 		return true;
 	    } else if(skier.getSpeed() < yeti.getSpeed()) {
-		return currentDist < nextDist;
-	    } else {
 		return currentDist > nextDist;
+	    } else {
+		return currentDist < nextDist;
 	    }
 	} catch(NoEnemyException e) {
 	    return true;
@@ -1032,9 +1044,9 @@ class SkiTests {
     //During every tick while SkiFree is in state GAME, the score should be increasing,
     //and during every tick while not in state GAME, the score should stay the same
     //EFFECT: Returns true if the game is in state GAME and the score is greater after calling
-    //        onTick(), or if the game s not in state GAME, and the score stays the same after
+    //        onTick(), or if the game is not in state GAME, and the score stays the same after
     //        calling onTick()
-    public static boolean scoreTest(SkiFree game) {
+    public static boolean testScoreIncrease(SkiFree game) {
 	return (game.getState() == GameState.GAME && game.getScore() < game.onTick().getScore()) ||
 	    (game.getState() != GameState.GAME && game.getScore() == game.onTick().getScore());
     }
@@ -1053,7 +1065,7 @@ class SkiTests {
 	    } else if(chooseKey == 1) {
 		inputs[i] = "right";
 	    } else if(chooseKey == 2) {
-		inputs[i] = "down";
+		inputs[i] = "up";
 	    } else {
 		inputs[i] = "left";
 	    }
@@ -1066,6 +1078,10 @@ class SkiTests {
 	int failedTests = 0;
 
 	//SINGLE CASE TESTS
+	if(!testCollision()) {
+	    System.out.println("Colliding objects are not being detected");
+	    failedTests++;
+	}
 	if(!testArrowKeys()) {
 	    System.out.println("Arrow keys are not properly changing the player");
 	    failedTests++;
@@ -1093,8 +1109,7 @@ class SkiTests {
 				 "Images/playerStraight.png", NORMAL, STRAIGHT);
 	Slopes slps = new Slopes(qu, plyr, slpWidth, slpHeight);
 	SkiFree s = new SkiFree(slps, width, height, 0, yetiStart, GameState.START);
-	for(int times = 0; times < 100; times++) {
-	String[] inputs = genKeyInputs(1000);
+	String[] inputs = genKeyInputs(5000);
 
 	for(int i = 0; i < 2*inputs.length; i++) {
 	    if(i%2 == 0) {
@@ -1102,35 +1117,26 @@ class SkiTests {
 	    } else {
 		s = s.onTick();
 	    }
-	    if(!anyNegativeTest(s)) {
+	    if(!testAnyNegative(s)) {
 		System.out.println("An obstacle has a negative Y-value");
 		failedTests++;
 	    }
-	    if(!successfulCrashTest(s)) {
+	    if(!testSuccessfulCrash(s)) {
 		System.out.println("Game is not properly handling crashing");
 		failedTests++;
-	    } /*
-	    if(!directionTest(s)) {
-		System.out.println("Something is moving in the wrong direction");
-		failedTests++;
 	    }
-	    if(!forwardTest(s)) {
-		System.out.println("An obstacle is not moving up normally");
-		failedTests++;
-	    } */
-	    if(!yetiApproachTest(s)) {
+	    if(!testYetiApproach(s)) {
 		System.out.println("Yeti is not getting closer when it should");
 		failedTests++;
 	    }
-	    if(!scoreTest(s)) {
+	    if(!testScoreIncrease(s)) {
 		System.out.println("Score is not changing as it should be");
 		failedTests++;
 	    }
 	}
 	System.out.println(failedTests + " tests failed");
-	}    
 	//RESET THE GAME AND RUN IT
-	s = s.restart();
+	s = s.restart();    
 	s.bigBang(width, height, .035);
     }
     

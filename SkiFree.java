@@ -189,6 +189,7 @@ interface EnemySpace extends Collidable{
     EnemySpace move(int dx, int dy);
     EnemySpace moveTowards(Posn position, int distance);
     EnemySpace changePic(String imgName);
+    EnemySpace changeSpeed(double speed);
 } 
 
 
@@ -235,6 +236,9 @@ class NoEnemy implements EnemySpace{
 	return this;
     }
     public EnemySpace changePic(String imgName) {
+	return this;
+    }
+    public EnemySpace changeSpeed(double speed) {
 	return this;
     }
 }
@@ -334,6 +338,11 @@ class Enemy implements EnemySpace{
     public EnemySpace changePic(String imgName) {
 	return new Enemy(this.position, this.width, this.height, imgName,
 			 this.speed);
+    }
+    
+    public EnemySpace changeSpeed(double speed) {
+	return new Enemy(this.position, this.width, this.height, this.imgName,
+			 speed);
     }
 
 
@@ -518,6 +527,15 @@ class Slopes {
 	return new Slopes(this.obstacles, this.skier, this.yeti.changePic(imgName),
 			  this.width, this.height);
     }
+
+    public Slopes addYetiSpeed(double dSpeed) {
+	try {
+	    return new Slopes(this.obstacles, this.skier, this.yeti.changeSpeed(this.yeti.getSpeed() + dSpeed),
+			      this.width, this.height);
+	} catch(NoEnemyException e) {
+	    return this;
+	}
+    }
     
 
     //EFFECT: Return a new Slopes, with all of the obstacles in the queue and the enemy
@@ -611,6 +629,8 @@ public class SkiFree extends World {
     public static final double NORMAL = 1.0;
     public static final double YETISPEED = 1.4;
     public static final double FAST = 1.6;
+
+    public static final double INCREMENT = .05;
 
     public static final int TICKDISTANCE = 10;
 
@@ -776,6 +796,11 @@ public class SkiFree extends World {
 				   , this.yetiCount, GameState.CRASH);
 	    } else if(this.yetiCount % 500 == 0 && this.slopes.yeti.emptyHuh()) {
 		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * slopes.getSkier().getSpeed())).addYeti(),
+				   this.width, this.height,
+				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
+				   this.yetiCount + 1, this.state);
+	    } else if(this.yetiCount % 500 == 0) {
+		return new SkiFree(slopes.moveSlopes((int) (TICKDISTANCE * slopes.getSkier().getSpeed())).addYetiSpeed(INCREMENT),
 				   this.width, this.height,
 				   (int) (this.score +  1.5*this.slopes.getSkier().getSpeed()),
 				   this.yetiCount + 1, this.state);
